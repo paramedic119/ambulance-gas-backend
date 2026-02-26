@@ -18,7 +18,7 @@ function doGet(e) {
         headers.forEach((header, i) => {
             let val = row[i];
             // Convert to number if possible for specific fields
-            if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon"].includes(header)) {
+            if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon", "age", "exp"].includes(header)) {
                 val = parseFloat(val);
                 if (isNaN(val)) val = 0;
             }
