@@ -9,24 +9,33 @@ function doGet(e) {
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
 
-    const headers = data[0];
+    const headers = data[0].map(h => h.toString().trim()); // Trim headers
     const rows = data.slice(1);
-    const jsonData = rows.map(row => {
+
+    // Filter out empty rows and map to objects
+    const jsonData = rows.filter(row => row.join("").trim() !== "").map(row => {
         let obj = {};
-        headers.forEach((header, i) => obj[header] = row[i]);
+        headers.forEach((header, i) => {
+            let val = row[i];
+            // Convert to number if possible for specific fields
+            if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon"].includes(header)) {
+                val = parseFloat(val);
+                if (isNaN(val)) val = 0;
+            }
+            obj[header] = val;
+        });
         return obj;
     });
 
     // 地図解析時のみフィルタリングを実行
     if (e.parameter && e.parameter.type === 'map') {
         const uncomfTimes = jsonData
-            .filter(d => parseInt(d.uncomfortable) === 1)
-            .map(d => parseInt(d.time_ms));
+            .filter(d => d.uncomfortable === 1)
+            .map(d => d.time_ms);
 
         const WINDOW_MS = 30000;
         const filteredData = jsonData.filter((d, index) => {
-            const t = parseInt(d.time_ms);
-            const isNearUncomf = uncomfTimes.some(ut => t >= ut - WINDOW_MS && t <= ut + WINDOW_MS);
+            const isNearUncomf = uncomfTimes.some(ut => d.time_ms >= ut - WINDOW_MS && d.time_ms <= ut + WINDOW_MS);
             return isNearUncomf || (index % 40 === 0);
         });
         return ContentService.createTextOutput(JSON.stringify(filteredData)).setMimeType(ContentService.MimeType.JSON);
