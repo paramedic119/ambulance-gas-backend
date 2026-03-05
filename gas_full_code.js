@@ -9,23 +9,28 @@ function doGet(e) {
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
 
-    const headers = data[0].map(h => h.toString().trim()); // Trim headers
+    const headers = data[0].map(h => h.toString().trim());
     const rows = data.slice(1);
 
-    // Filter out empty rows and map to objects
-    const jsonData = rows.filter(row => row.join("").trim() !== "").map(row => {
-        let obj = {};
-        headers.forEach((header, i) => {
-            let val = row[i];
-            // Convert to number if possible for specific fields
-            if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon", "age", "exp"].includes(header)) {
-                val = parseFloat(val);
-                if (isNaN(val)) val = 0;
-            }
-            obj[header] = val;
-        });
-        return obj;
-    });
+    // Get 'since' parameter from URL
+    const sinceTime = e.parameter && e.parameter.since ? parseInt(e.parameter.since) : 0;
+
+    // Filter out empty rows, map to objects, and apply 'since' filter
+    let jsonData = rows
+        .filter(row => row.join("").trim() !== "")
+        .map(row => {
+            let obj = {};
+            headers.forEach((header, i) => {
+                let val = row[i];
+                if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon", "age", "exp"].includes(header)) {
+                    val = parseFloat(val);
+                    if (isNaN(val)) val = 0;
+                }
+                obj[header] = val;
+            });
+            return obj;
+        })
+        .filter(d => d.time_ms > sinceTime); // 差分抽出
 
     // 地図解析時のみフィルタリングを実行
     if (e.parameter && e.parameter.type === 'map') {
