@@ -905,7 +905,7 @@
             if (rawData.length > 0) {
                 let tripStartIdx = 0;
                 for (let i = 1; i < rawData.length; i++) {
-                    if (rawData[i].time - rawData[i - 1].time > GAP_THRESHOLD_MS) {
+                    if (rawData[i].time - rawData[i - 1].time > GAP_THRESHOLD_MS || rawData[i].age !== rawData[i - 1].age) {
                         currentTrips.push({
                             id: `trip_${tripStartIdx}`,
                             startIndex: tripStartIdx,
