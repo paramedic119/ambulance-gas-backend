@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRAKING ANALYTICS - Driving App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Outfit:wght@600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --primary: #c084fc;
+            --primary-dark: #a855f7;
+            --text: #f8fafc;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --danger: #f87171;
+            --warn: #fbbf24;
+            --good: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding-bottom: 50px;
+        }
+
+        header {
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Controls */
+        .controls-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+        }
+
+        /* Cards */
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .event-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .event-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(192, 132, 252, 0.4);
+        }
+
+        /* Uncomf marker on card */
+        .event-card.has-uncomf::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: var(--primary-dark);
+            box-shadow: 0 0 10px var(--primary-dark);
+        }
+
+        .event-info {
+            flex: 0 0 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .event-time {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .event-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #fff;
+        }
+
+        .event-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: auto;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .badge.danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: var(--danger);
+        }
+
+        .badge.warn {
+            background: rgba(251, 140, 0, 0.2);
+            color: var(--warn);
+        }
+
+        .badge.good {
+            background: rgba(76, 175, 80, 0.2);
+            color: var(--good);
+        }
+
+        .event-graph {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            position: relative;
+            min-height: 120px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .graph-title {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-bottom: 5px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100px;
+            will-change: transform;
+        }
+
+        /* G-Bowl */
+        .gbowl-wrapper {
+            flex: 0 0 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .gbowl-title {
+            font-size: 0.65rem;
+            color: #64748b;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .gbowl-canvas {
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+        }
+
+        .event-action {
+            flex: 0 0 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid var(--glass-border);
+            padding-left: 20px;
+        }
+
+        .btn-map {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--primary);
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .btn-map:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-map svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        #emptyState {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+            font-size: 1.1rem;
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px dashed var(--glass-border);
+        }
+
+        @media (max-width: 768px) {
+            .event-card {
+                flex-direction: column;
+            }
+
+            .event-action {
+                border-left: none;
+                border-top: 1px solid var(--glass-border);
+                padding-left: 0;
+                padding-top: 15px;
+            }
+
+            .controls-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div>
+            <h1>BRAKING ANALYTICS</h1>
+            <div id="status" style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">データを取得中...</div>
+        </div>
+        <div class="nav-links">
+            <a href="index.html">統合グラフ</a>
+            <a href="map.html">地図分析</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="controls-panel">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>ブレーキ判定閾値</span>
+                    <span id="threshVal">-0.05 G</span>
+                </div>
+                <input type="range" id="threshSlider" min="0.02" max="0.30" step="0.01" value="0.05">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #64748b;">
+                    <span>緩い</span><span>厳しい</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>最小継続時間</span>
+                    <span id="durVal">2.0 秒</span>
+                </div>
+                <input type="range" id="durSlider" min="0.5" max="5.0" step="0.1" value="2.0">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #64748b;">
+                    <span>短い</span><span>長い</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>スムージング (平滑化)</span>
+                    <span id="filterVal">5 サンプル</span>
+                </div>
+                <input type="range" id="filterSlider" min="1" max="50" step="1" value="5">
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #64748b;">
+                    <span>細かく</span><span>滑らか</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="emptyState">
+            指定された条件（閾値未満のGが継続）に合致するブレーキイベントがありません。
+        </div>
+
+        <div class="event-list" id="eventList">
+            <!-- Cards will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        const gasUrl = "https://script.google.com/macros/s/AKfycbyza-BCowCNcWYb-63gx1gd4UARcYTeJ8DXqv-rrZwcRryWqfZanAnXfyrf6jFxMEfDIA/exec";
+        let rawData = [];
+        let processedData = [];
+
+        /**
+         * IndexedDB Wrapper for Newton App
+         */
+        class NewtonDB {
+            constructor() {
+                this.dbName = "DrivingAppDB";
+                this.storeName = "logs";
+                this.db = null;
+            }
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 2);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: "time_ms" });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        resolve(this.db);
+                    };
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+
+            async getAll() {
+                if (!this.db) await this.open();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(this.storeName, "readonly");
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async addItems(items) {
+                if (!this.db) await this.open();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(this.storeName, "readwrite");
+                    const store = transaction.objectStore(this.storeName);
+                    items.forEach(item => {
+                        item.time_ms = item.time;
+                        store.put(item);
+                    });
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = () => reject(transaction.error);
+                });
+            }
+        }
+
+        const db = new NewtonDB();
+
+        const threshSlider = document.getElementById('threshSlider');
+        const threshVal = document.getElementById('threshVal');
+        const durSlider = document.getElementById('durSlider');
+        const durVal = document.getElementById('durVal');
+        const filterSlider = document.getElementById('filterSlider');
+        const filterVal = document.getElementById('filterVal');
+        const eventList = document.getElementById('eventList');
+        const emptyState = document.getElementById('emptyState');
+        const statusEl = document.getElementById('status');
+
+        threshSlider.addEventListener('input', () => {
+            threshVal.innerText = `-${parseFloat(threshSlider.value).toFixed(2)} G`;
+            analyzeBrakes();
+        });
+
+        durSlider.addEventListener('input', () => {
+            durVal.innerText = `${parseFloat(durSlider.value).toFixed(1)} 秒`;
+            analyzeBrakes();
+        });
+
+        filterSlider.addEventListener('input', () => {
+            filterVal.innerText = `${filterSlider.value} サンプル`;
+            preprocessData();
+            analyzeBrakes();
+        });
+
+        async function fetchData() {
+            // 1. 初回起動時、IndexedDBからローカルデータを読み込む
+            if (rawData.length === 0) {
+                try {
+                    const cachedData = await db.getAll();
+                    if (cachedData && cachedData.length > 0) {
+                        rawData = cachedData.sort((a, b) => a.time - b.time);
+                        preprocessData();
+                        analyzeBrakes();
+                        statusEl.innerText = `⚡ ローカルDBから復元中 (${rawData.length} 件)...`;
+                    }
+                    // 古い localStorage キャッシュがあれば削除（移行）
+                    localStorage.removeItem("driving_app_full_data");
+                } catch (e) {
+                    console.error("IndexedDB Load Error:", e);
+                }
+            }
+
+            try {
+                // 最後に同期した時刻を取得
+                const lastSync = rawData.length > 0 ? Math.max(...rawData.map(d => d.time)) : 0;
+
+                // 差分を指定してフェッチ
+                const response = await fetch(`${gasUrl}?since=${lastSync}&t=${Date.now()}`);
+                if (!response.ok) throw new Error("Server Error");
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    const newItems = data.map(row => {
+                        const jX = parseFloat(row.jerk_X) || 0;
+                        const jY = parseFloat(row.jerk_Y) || 0;
+                        const jZ = parseFloat(row.jerk_Z) || 0;
+                        return {
+                            time: parseInt(row.time_ms),
+                            uncomf: parseInt(row.uncomfortable),
+                            rawX: parseFloat(row.rawG_X) || 0,
+                            rawY: parseFloat(row.rawG_Y) || 0,
+                            rawZ: parseFloat(row.rawG_Z) || 0,
+                            jerkZ: jZ,
+                            jerk: Math.sqrt(jX ** 2 + jY ** 2 + jZ ** 2)
+                        };
+                    });
+
+                    const existingTimes = new Set(rawData.map(d => d.time));
+                    const uniqueNewItems = newItems.filter(item => !existingTimes.has(item.time));
+
+                    if (uniqueNewItems.length > 0) {
+                        // 新規分をDB保存
+                        await db.addItems(uniqueNewItems);
+                        // メモリ更新
+                        rawData = [...rawData, ...uniqueNewItems].sort((a, b) => a.time - b.time);
+                        preprocessData();
+                        analyzeBrakes();
+                    }
+                    statusEl.innerText = `同期完了 (合計: ${rawData.length} / 新規: ${uniqueNewItems.length} 件)`;
+                } else {
+                    statusEl.innerText = `最新の状態です (合計: ${rawData.length} 件)`;
+                }
+            } catch (e) {
+                statusEl.innerText = "エラー: " + e.message;
+            }
+        }
+
+        function preprocessData() {
+            processedData = [];
+            const windowSize = parseInt(filterSlider.value);
+            for (let i = 0; i < rawData.length; i++) {
+                let sumY = 0; let count = 0;
+                for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
+                    sumY += rawData[j].rawY; count++;
+                }
+                processedData.push({
+                    ...rawData[i],
+                    sY: sumY / count
+                });
+            }
+        }
+
+        function analyzeBrakes() {
+            if (processedData.length === 0) return;
+
+            const gThresh = parseFloat(threshSlider.value);
+            const minTime = parseFloat(durSlider.value);
+
+            let events = [];
+            let current = null;
+
+            processedData.forEach((p, idx) => {
+                if (p.sY < -gThresh) {
+                    if (!current) {
+                        current = { startTime: p.time, points: [p] };
+                    } else {
+                        current.points.push(p);
+                    }
+                } else {
+                    if (current) {
+                        const dur = (p.time - current.startTime) / 1000;
+                        if (dur >= minTime) {
+                            current.duration = dur;
+                            events.push(current);
+                        }
+                        current = null;
+                    }
+                }
+            });
+
+            renderEvents(events);
+        }
+
+        function renderEvents(events) {
+            eventList.innerHTML = '';
+
+            if (events.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            events.reverse().forEach((ev, i) => { // 最新が上
+                const date = new Date(ev.startTime);
+                const timeStr = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}:${date.getSeconds().toString().padStart(2, "0")}`;
+                const dateStr = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
+
+                const maxDecel = Math.min(...ev.points.map(p => p.sY));
+
+                // Analytics
+                const lastPoints = ev.points.slice(-15); // 約0.3秒
+                const stopJerk = lastPoints.length > 0 ? Math.max(...lastPoints.map(p => p.jerk)) : 0;
+
+                const mid = Math.floor(ev.points.length / 2);
+                const firstHalfG = ev.points.slice(0, mid).reduce((sum, p) => sum + p.sY, 0) / (mid || 1);
+                const secondHalfG = ev.points.slice(mid).reduce((sum, p) => sum + p.sY, 0) / (ev.points.length - mid || 1);
+                const isAdding = secondHalfG < firstHalfG - 0.05;
+                const hasUncomf = ev.points.some(p => p.uncomf === 1);
+                const maxZJerk = Math.max(...ev.points.map(p => Math.abs(p.jerkZ)));
+                const isRoadImpact = maxZJerk > 0.8; // 垂直振動が強い場合
+
+                let badges = '';
+                if (stopJerk > 0.4) badges += '<span class="badge danger">カックン停車(大)</span>';
+                else if (stopJerk > 0.2) badges += '<span class="badge warn">カックン停車</span>';
+                if (isAdding) badges += '<span class="badge warn">踏み増し</span>';
+                if (isRoadImpact) badges += '<span class="badge info" style="background: rgba(251, 140, 0, 0.2); color: #fb8c00; border: 1px solid #fb8c00;">路面影響の疑い</span>';
+                if (hasUncomf) badges += '<span class="badge danger">不快申告あり</span>';
+                if (badges === '') badges = '<span class="badge good">スムーズ</span>';
+
+                const cardId = `brake-card-${i}`;
+                const canvasId = `brake-canvas-${i}`;
+
+                const gbowlCanvasId = `gbowl-canvas-${i}`;
+
+                const card = document.createElement('div');
+                card.className = `event-card ${hasUncomf ? 'has-uncomf' : ''}`;
+                card.id = cardId;
+
+                card.innerHTML = `
+                    <div class="event-info">
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${dateStr}</div>
+                        <div class="event-time">${timeStr}</div>
+                        <div class="event-stats">
+                            <div><div>継続</div><div class="stat-value">${ev.duration.toFixed(1)}s</div></div>
+                            <div><div>最大G</div><div class="stat-value" style="color: var(--danger);">${maxDecel.toFixed(2)}</div></div>
+                            <div><div>Jerk</div><div class="stat-value">${stopJerk.toFixed(1)}</div></div>
+                            <div title="垂直方向の衝撃強度"><div>路面振動</div><div class="stat-value" style="color: #fb8c00;">${maxZJerk.toFixed(1)}</div></div>
+                        </div>
+                        <div class="event-badges">${badges}</div>
+                    </div>
+                    <div class="event-graph">
+                        <div class="graph-title">前G (Longitudinal Deceleration) 波形</div>
+                        <canvas id="${canvasId}" width="400" height="100"></canvas>
+                    </div>
+                    <div class="gbowl-wrapper">
+                        <div class="gbowl-title">G-Bowl</div>
+                        <canvas id="${gbowlCanvasId}" class="gbowl-canvas" width="120" height="120" title="タップで再生"></canvas>
+                    </div>
+                    <div class="event-action">
+                        <a href="map.html?startTime=${ev.startTime}&endTime=${ev.points[ev.points.length - 1].time}" class="btn-map">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            地図参照
+                        </a>
+                    </div>
+                `;
+
+                eventList.appendChild(card);
+                drawSparkline(canvasId, ev.points);
+                initGBowl(gbowlCanvasId, ev.points);
+            });
+        }
+
+        function drawSparkline(canvasId, points) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Setup styling
+            ctx.clearRect(0, 0, w, h);
+
+            // Dynamic Range calculation (減速Gの絶対値でスケールを決定)
+            const maxDecelRaw = Math.max(...points.map(p => Math.abs(p.sY)));
+            const currentThresh = parseFloat(threshSlider.value);
+            // スケールは「最大値または閾値」の大きい方の1.2倍、最低でも0.15G確保
+            const yLimit = Math.max(0.15, Math.max(maxDecelRaw, currentThresh) * 1.2);
+
+            // 上下反転: 0Gを最下部(h)、強い減速を上部(0)に配置
+            const getY = (val) => {
+                // 減速（マイナス値）のみを正の大きさとして扱う
+                const absVal = Math.abs(Math.min(0, val));
+                return h - (absVal / yLimit) * (h - 10) - 5; // 上下に少しマージン
+            };
+            const getX = (idx) => (idx / (points.length - 1)) * w;
+
+            // Draw Road Vibration Overlay (Z-axis Jerk) - 背景に薄いオレンジで表示
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(251, 140, 0, 0.15)';
+            points.forEach((p, i) => {
+                const zHeight = Math.min(h, (Math.abs(p.jerkZ) / 2.0) * h); // 最大2.0G/s程度でフル表示
+                if (i === 0) ctx.moveTo(getX(i), h);
+                ctx.lineTo(getX(i), h - zHeight);
+            });
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.fill();
+
+            // Draw Zero line (最下部)
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(0, getY(0));
+            ctx.lineTo(w, getY(0));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Target/Threshold Line
+            const gThresh = -currentThresh;
+            ctx.strokeStyle = 'rgba(192, 132, 252, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, getY(gThresh));
+            ctx.lineTo(w, getY(gThresh));
+            ctx.stroke();
+
+            // Draw G Curve (上向きに伸びる波形)
+            ctx.beginPath();
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+
+            points.forEach((p, i) => {
+                const yPos = getY(p.sY);
+                if (i === 0) ctx.moveTo(getX(i), yPos);
+                else ctx.lineTo(getX(i), yPos);
+            });
+            ctx.stroke();
+
+            // Fill under curve
+            ctx.lineTo(w, getY(0));
+            ctx.lineTo(0, getY(0));
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+            ctx.fill();
+
+            // Draw Uncomfort markers (波形上の対応点に描画)
+            points.forEach((p, i) => {
+                if (p.uncomf === 1) {
+                    ctx.fillStyle = '#f87171';
+                    ctx.beginPath();
+                    ctx.arc(getX(i), getY(p.sY), 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 外側に光彩
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#f87171';
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+
+        /**
+         * G-Bowl の初期化・アニメーション
+         * 実際のデータロガーと同じ動き:
+         *   - ブレーキ（前G、sY < 0）→ ボールが上に転がる
+         *   - 加速（後G、sY > 0）→ ボールが下に転がる
+         *   - 左旋回（rawX < 0）→ ボールが右に転がる
+         *   - 右旋回（rawX > 0）→ ボールが左に転がる
+         * ローパスフィルタ（EMA）で滑らかな動きを再現
+         */
+        function initGBowl(canvasId, points) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            // G-Bowlの表示スケール: 0.3G でボウル端に達するように設定
+            const G_SCALE = 0.3;
+            let animFrameId = null;
+            let isPlaying = false;
+
+            // --- ローパスフィルタ（EMA）でデータ点を前処理 ---
+            // α = 0.15 → かなり滑らか（実機のロガーに近い応答）
+            const LPF_ALPHA = 0.15;
+            const filteredPoints = [];
+            let fX = points[0].rawX;
+            let fY = points[0].sY;
+            for (let i = 0; i < points.length; i++) {
+                fX = fX + LPF_ALPHA * (points[i].rawX - fX);
+                fY = fY + LPF_ALPHA * (points[i].sY - fY);
+                filteredPoints.push({
+                    x: fX,      // フィルタ済み横G
+                    y: fY,      // フィルタ済み前後G
+                    uncomf: points[i].uncomf,
+                    time: points[i].time
+                });
+            }
+
+            // 実データの時間幅からアニメーション速度を決定（実時間の0.5〜1.0倍速）
+            const realDurationMs = points[points.length - 1].time - points[0].time;
+            const ANIM_DURATION_MS = Math.max(1500, Math.min(4000, realDurationMs * 0.8));
+
+            // 座標変換ヘルパー: データロガーの慣性力方向
+            // ブレーキ (sY < 0) → ボール上方向 (py減少)
+            // rawX は慣性力の逆方向 → 符号反転
+            function toCanvasX(gX, cx, r) { return cx - (gX / G_SCALE) * r; }
+            function toCanvasY(gY, cy, r) { return cy + (gY / G_SCALE) * r; }
+
+            // ボウルの基本構造を描画
+            function drawBowlBase(ctx, cx, cy, r) {
+                // 外周リング
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 中心十字線
+                ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+
+                // 中間リング (0.15G相当)
+                ctx.beginPath();
+                ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                ctx.stroke();
+
+                // 方向ラベル
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.font = '8px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('前', cx, cy - r + 8);
+                ctx.fillText('後', cx, cy + r - 8);
+            }
+
+            // 静止状態（全トレイル + 再生ボタン）
+            function drawStatic() {
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width;
+                const h = canvas.height;
+                const cx = w / 2;
+                const cy = h / 2;
+                const r = Math.min(cx, cy) - 4;
+                ctx.clearRect(0, 0, w, h);
+
+                drawBowlBase(ctx, cx, cy, r);
+
+                // フィルタ済み全トレイルを薄いグレーで描画
+                if (filteredPoints.length > 1) {
+                    ctx.beginPath();
+                    filteredPoints.forEach((fp, i) => {
+                        const px = toCanvasX(fp.x, cx, r);
+                        const py = toCanvasY(fp.y, cy, r);
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    });
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+
+                // 最終位置ボール
+                const lastFP = filteredPoints[filteredPoints.length - 1];
+                const bx = toCanvasX(lastFP.x, cx, r);
+                const by = toCanvasY(lastFP.y, cy, r);
+                ctx.beginPath();
+                ctx.arc(bx, by, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#a855f7';
+                ctx.fill();
+
+                // 再生アイコン（▶）
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText('▶', cx, h - 2);
+            }
+
+            // アニメーション再生
+            function playAnimation() {
+                if (isPlaying) return;
+                isPlaying = true;
+                const animStart = performance.now();
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width;
+                const h = canvas.height;
+                const cx = w / 2;
+                const cy = h / 2;
+                const r = Math.min(cx, cy) - 4;
+
+                // トレイル履歴（直近N点を保持して尾を描画）
+                const TRAIL_LEN = 25;
+                const trail = [];
+
+                function frame(now) {
+                    const elapsed = now - animStart;
+                    const progress = Math.min(elapsed / ANIM_DURATION_MS, 1.0);
+                    const idx = Math.floor(progress * (filteredPoints.length - 1));
+                    const fp = filteredPoints[idx];
+
+                    const bx = toCanvasX(fp.x, cx, r);
+                    const by = toCanvasY(fp.y, cy, r);
+                    trail.push({ x: bx, y: by, uncomf: fp.uncomf });
+                    if (trail.length > TRAIL_LEN) trail.shift();
+
+                    ctx.clearRect(0, 0, w, h);
+                    drawBowlBase(ctx, cx, cy, r);
+
+                    // トレイル描画（古い点ほど薄く・細く）
+                    if (trail.length > 1) {
+                        for (let i = 1; i < trail.length; i++) {
+                            const alpha = (i / trail.length) * 0.6;
+                            const lw = (i / trail.length) * 2.5 + 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+                            ctx.lineTo(trail[i].x, trail[i].y);
+                            ctx.strokeStyle = `rgba(168, 85, 247, ${alpha})`;
+                            ctx.lineWidth = lw;
+                            ctx.stroke();
+                        }
+                    }
+
+                    // ボール描画
+                    const isUncomf = fp.uncomf === 1;
+                    const ballColor = isUncomf ? '#f87171' : '#c084fc';
+                    const glowColor = isUncomf ? 'rgba(248,113,113,0.7)' : 'rgba(192,132,252,0.5)';
+
+                    // ゴースト影（ボールの残像感）
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 9, 0, Math.PI * 2);
+                    ctx.fillStyle = glowColor;
+                    ctx.fill();
+
+                    // メインボール
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = glowColor;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 5.5, 0, Math.PI * 2);
+                    ctx.fillStyle = ballColor;
+                    ctx.fill();
+
+                    // ハイライト（立体感）
+                    ctx.shadowBlur = 0;
+                    ctx.beginPath();
+                    ctx.arc(bx - 1.5, by - 1.5, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                    ctx.fill();
+
+                    if (progress < 1.0) {
+                        animFrameId = requestAnimationFrame(frame);
+                    } else {
+                        isPlaying = false;
+                        drawStatic();
+                    }
+                }
+
+                animFrameId = requestAnimationFrame(frame);
+            }
+
+            // 初期描画
+            drawStatic();
+
+            // タップ/クリックで再生
+            canvas.addEventListener('click', () => {
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+                isPlaying = false;
+                playAnimation();
+            });
+
+            // 画面に入ったら自動再生（IntersectionObserver）
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !isPlaying) {
+                        playAnimation();
+                        observer.unobserve(canvas);
+                    }
+                });
+            }, { threshold: 0.5 });
+            observer.observe(canvas);
+        }
+
+        window.onload = fetchData;
+    </script>
+</body>
+
+</html>

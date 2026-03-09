@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAP ANALYTICS - Driving App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Outfit:wght@600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent: #10b981;
+            --text: #f8fafc;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            padding: 15px 15px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            color: #10b981;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: bold;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        #map {
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        .controls {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            right: 10px;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            padding: 15px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 250px;
+            z-index: 10;
+        }
+
+        @media (max-width: 600px) {
+            .controls {
+                width: calc(100% - 20px);
+                max-width: none;
+                top: auto;
+                bottom: 20px;
+            }
+        }
+
+        .legend {
+            margin-top: 15px;
+            font-size: 0.8rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+
+        #status {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div>
+            <h1>MAP ANALYTICS</h1>
+            <div id="status" style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">クラウドからデータを取得中...</div>
+        </div>
+        <div class="nav-links">
+            <a href="index.html">統合グラフ</a>
+            <a href="brake.html">ブレーキ分析</a>
+        </div>
+    </header>
+
+    <div id="map"></div>
+
+    <div class="controls">
+        <button onclick="fetchData()">最新データに更新</button>
+        <div style="font-size: 0.9rem; font-weight: bold; margin-bottom: 10px;">Jerk Intensity (Heatmap)</div>
+
+        <!-- 信号処理フィルター -->
+        <div
+            style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: #94a3b8;">ローパスフィルタ (スムージング)
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="font-size: 0.7rem; color: #64748b;">弱</span>
+                <input type="range" id="filterSlider" min="1" max="50" value="10" oninput="applyFilter()"
+                    style="flex-grow: 1; accent-color: #10b981;">
+                <span style="font-size: 0.7rem; color: #64748b;">強</span>
+            </div>
+            <div id="filterDisplay" style="font-size: 0.75rem; color: #10b981; text-align: center; margin-top: 4px;">過去
+                10 サンプル</div>
+        </div>
+
+        <!-- 路面起因フィルター -->
+        <div
+            style="margin-bottom: 15px; padding: 10px; background: rgba(251, 140, 0, 0.1); border-radius: 8px; border: 1px solid rgba(251, 140, 0, 0.3);">
+            <label
+                style="display: flex; align-items: center; font-size: 0.85rem; cursor: pointer; color: #f8fafc; margin-bottom: 10px;">
+                <input type="checkbox" id="showRoadCheck" checked onchange="applyFilter()"
+                    style="margin-right: 8px; width: 16px; height: 16px; accent-color: #fb8c00;">
+                路面起因（橙）を表示
+            </label>
+            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 5px;">判定感度 (Z軸衝撃): <span id="zThreshDisplay"
+                    style="color: #fb8c00; font-weight: bold;">0.8 G/s</span></div>
+            <input type="range" id="zThresholdSlider" min="0.1" max="2.0" step="0.05" value="0.8"
+                oninput="applyFilter()" style="width: 100%; accent-color: #fb8c00;">
+
+            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px; margin-bottom: 5px;">反応遅延補正: <span
+                    id="lookbackDisplay" style="color: #4ade80; font-weight: bold;">0.5 秒</span></div>
+            <input type="range" id="lookbackSlider" min="0.0" max="3.0" step="0.1" value="0.5" oninput="applyFilter()"
+                style="width: 100%; accent-color: #4ade80;">
+        </div>
+
+        <label
+            style="display: flex; align-items: center; margin-bottom: 15px; font-size: 0.85rem; cursor: pointer; color: #f8fafc; background: rgba(220, 38, 38, 0.2); padding: 8px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.4);">
+            <input type="checkbox" id="filterRed" onchange="applyFilter()"
+                style="margin-right: 8px; width: 16px; height: 16px; accent-color: #ef4444;">
+            急操作（赤）のみ抽出表示
+        </label>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="dot" style="background: #10b981;"></div> Smooth (&lt; 0.2 G/s)
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #fbbf24;"></div> 操作 (中)
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #ef4444;"></div> 操作起因の衝撃 (赤)
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #fb8c00;"></div> 路面起因の衝撃 (橙)
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #a855f7;"></div> 傷病者 不快感申告
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gasUrl = "https://script.google.com/macros/s/AKfycbyza-BCowCNcWYb-63gx1gd4UARcYTeJ8DXqv-rrZwcRryWqfZanAnXfyrf6jFxMEfDIA/exec";
+        const API_KEY = "AIzaSyC6sClX278FbJ-mA-OoSU9841M68Ies8PE";
+        let map;
+        let markers = [];
+        let polyline;
+        let currentData = [];
+
+        /**
+         * IndexedDB Wrapper for Newton App
+         */
+        class NewtonDB {
+            constructor() {
+                this.dbName = "DrivingAppDB";
+                this.storeName = "logs";
+                this.db = null;
+            }
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 2);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: "time_ms" });
+                        }
+                    };
+                    request.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        resolve(this.db);
+                    };
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+
+            async getAll() {
+                if (!this.db) await this.open();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(this.storeName, "readonly");
+                    const store = transaction.objectStore(this.storeName);
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async addItems(items) {
+                if (!this.db) await this.open();
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(this.storeName, "readwrite");
+                    const store = transaction.objectStore(this.storeName);
+                    items.forEach(item => {
+                        // GASからのデータをそのまま保存
+                        store.put(item);
+                    });
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = () => reject(transaction.error);
+                });
+            }
+        }
+        const db = new NewtonDB();
+
+        function applyFilter() {
+            if (currentData && currentData.length > 0) {
+                plotOnMap(currentData);
+            }
+        }
+
+        async function initMap() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&callback=setupMap`;
+            script.async = true;
+            document.head.appendChild(script);
+        }
+
+        function setupMap() {
+            const darkStyles = [
+                { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
+                { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
+                { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
+                { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+                { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+                { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#263c3f" }] },
+                { "featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{ "color": "#6b9a76" }] },
+                { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
+                { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
+                { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
+                { "featureType": "road.highway", "elementType": "geometry", "stylers": [{ "color": "#746855" }] },
+                { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#1f2835" }] },
+                { "featureType": "road.highway", "elementType": "labels.text.fill", "stylers": [{ "color": "#f3d19c" }] },
+                { "featureType": "transit", "elementType": "geometry", "stylers": [{ "color": "#2f3948" }] },
+                { "featureType": "transit.station", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+                { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] },
+                { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#515c6d" }] },
+                { "featureType": "water", "elementType": "labels.text.stroke", "stylers": [{ "color": "#17263c" }] }
+            ];
+
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 15,
+                center: { lat: 35.6812, lng: 139.7671 },
+                styles: darkStyles,
+                mapTypeControl: false,
+                streetViewControl: true
+            });
+            fetchData();
+        }
+
+        async function fetchData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isIndividualEvent = urlParams.get('startTime') && urlParams.get('endTime');
+
+            // 1. 初回起動時、IndexedDBからローカルデータを読み込む
+            if (currentData.length === 0) {
+                try {
+                    const cachedData = await db.getAll();
+                    if (cachedData && cachedData.length > 0) {
+                        currentData = cachedData.sort((a, b) => a.time_ms - b.time_ms);
+                        applyFilter();
+                        document.getElementById('status').innerText = `⚡ ローカルDBから復元中 (${currentData.length} 件)...`;
+                    }
+                    localStorage.removeItem("driving_app_map_data");
+                } catch (e) {
+                    console.error("IndexedDB Load Error:", e);
+                }
+            }
+
+            document.getElementById('status').innerText = "☁️ クラウドから差分データを取得中...";
+            try {
+                // 最後に同期した時刻を取得
+                const lastSync = currentData.length > 0 ? Math.max(...currentData.map(d => parseInt(d.time_ms))) : 0;
+
+                // ?type=map を外し、フル解像度データを差分で取得するように変更（IndexedDB+差分同期により負荷を抑えつつ詳細化）
+                const response = await fetch(`${gasUrl}?since=${lastSync}&t=${Date.now()}`);
+                if (!response.ok) throw new Error("Server response was " + response.status);
+
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    // DB保存
+                    await db.addItems(data);
+
+                    // 重複を除外してマージ
+                    const existingTimes = new Set(currentData.map(d => parseInt(d.time_ms)));
+                    const uniqueNewItems = data.filter(item => !existingTimes.has(parseInt(item.time_ms)));
+
+                    if (uniqueNewItems.length > 0) {
+                        currentData = [...currentData, ...uniqueNewItems].sort((a, b) => a.time_ms - b.time_ms);
+                    }
+
+                    document.getElementById('status').innerText = isIndividualEvent
+                        ? `✅ 特定イベントを表示中 (${currentData.length} 件)`
+                        : `✅ 同期完了 (合計: ${currentData.length} / 新規: ${uniqueNewItems.length} 件)`;
+
+                    applyFilter();
+                } else {
+                    document.getElementById('status').innerText = `✅ 最新の状態です (合計: ${currentData.length} 件)`;
+                    if (currentData.length === 0) {
+                        if (polyline) polyline.setMap(null);
+                        markers.forEach(m => m.setMap(null));
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('status').innerText = "❌ 同期失敗: " + e.message;
+            }
+        }
+
+        function plotOnMap(data) {
+            if (!map) return;
+            if (polyline) polyline.setMap(null);
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            if (currentData.length > 0) {
+                // Ensure array index and basic structure
+                const dataWithIndex = data.map((d, i) => ({ ...d, originalIndex: i }));
+                processAndPlot(dataWithIndex);
+            }
+        }
+
+        function processAndPlot(data) {
+            if (!map) return;
+            if (polyline) polyline.setMap(null);
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            const showOnlyRed = document.getElementById('filterRed').checked;
+            const showRoad = document.getElementById('showRoadCheck').checked;
+            const windowSize = parseInt(document.getElementById('filterSlider').value);
+            const zThresh = parseFloat(document.getElementById('zThresholdSlider').value);
+            const lookbackTime = parseFloat(document.getElementById('lookbackSlider').value);
+
+            // Update UI displays
+            document.getElementById('filterDisplay').innerText = `過去 ${windowSize} サンプル`;
+            document.getElementById('zThreshDisplay').innerText = `${zThresh.toFixed(2)} G/s`;
+            document.getElementById('lookbackDisplay').innerText = `${lookbackTime.toFixed(1)} 秒`;
+
+            // Step 1: Smooth data (SMA) & Calculate Smoothed Jerk
+            const urlParams = new URLSearchParams(window.location.search);
+            const startTime = parseInt(urlParams.get('startTime'));
+            const endTime = parseInt(urlParams.get('endTime'));
+
+            let processedData = [];
+            for (let i = 0; i < data.length; i++) {
+                const dTime = parseInt(data[i].time_ms);
+                // URLパラメータがある場合、該当時間範囲（前後1秒の猶予）以外をスキップ
+                if (startTime && endTime) {
+                    if (dTime < startTime - 1000 || dTime > endTime + 1000) continue;
+                }
+
+                let sumX = 0; let sumY = 0; let count = 0;
+                for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
+                    sumX += parseFloat(data[j].rawG_X || 0);
+                    sumY += parseFloat(data[j].rawG_Y || 0);
+                    count++;
+                }
+                let sX = sumX / count;
+                let sY = sumY / count;
+
+                processedData.push({
+                    original: data[i],
+                    time: parseInt(data[i].time_ms),
+                    sX: sX,
+                    sY: sY,
+                    sG: Math.sqrt(sX ** 2 + sY ** 2),
+                    jerkZ: parseFloat(data[i].jerk_Z || 0),
+                    uncomf: parseInt(data[i].uncomfortable),
+                    lat: parseFloat(data[i].lat),
+                    lon: parseFloat(data[i].lon),
+                    jerk: 0 // Will be calculated next
+                });
+            }
+
+            for (let i = 1; i < processedData.length; i++) {
+                let dt = (processedData[i].time - processedData[i - 1].time) / 1000;
+                if (dt > 0) {
+                    processedData[i].jerk = Math.abs((processedData[i].sG - processedData[i - 1].sG) / dt);
+                } else {
+                    processedData[i].jerk = processedData[i - 1].jerk; // Fallback
+                }
+            }
+
+            const path = [];
+            let bounds = new google.maps.LatLngBounds();
+
+            processedData.forEach((p, idx) => {
+                const lat = p.lat;
+                const lon = p.lon;
+                if (isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) return;
+
+                const pos = { lat, lng: lon };
+                path.push(pos);
+                bounds.extend(pos);
+
+                let isRoad = false;
+                let evalZJerk = Math.abs(p.jerkZ);
+
+                // Check Road Bias Logic (Lookback & Z-Threshold)
+                if (p.uncomf === 1 || p.jerk > 0.5 || evalZJerk > zThresh) {
+                    if (lookbackTime > 0) {
+                        let lookbackMs = lookbackTime * 1000;
+                        for (let j = idx; j >= 0; j--) {
+                            if (p.time - processedData[j].time > lookbackMs) break;
+                            let absZ = Math.abs(processedData[j].jerkZ);
+                            if (absZ > evalZJerk) evalZJerk = absZ;
+                        }
+                    }
+                    if (evalZJerk > zThresh) {
+                        isRoad = true;
+                    }
+                }
+
+                let shouldPlot = false;
+                let color = '';
+
+                // Hierarchy of plotting
+                if (p.uncomf === 1) {
+                    shouldPlot = true;
+                    color = '#a855f7'; // Purple - always show
+                } else if (isRoad) {
+                    if (showRoad && !showOnlyRed) {
+                        shouldPlot = true;
+                        color = '#fb8c00'; // Orange
+                    }
+                } else if (p.jerk > 0.5) {
+                    shouldPlot = true;
+                    color = '#ef4444'; // Red
+                } else if (!showOnlyRed && !isRoad && p.jerk > 0.2) {
+                    shouldPlot = true;
+                    color = '#fbbf24'; // Yellow
+                }
+
+                if (shouldPlot) {
+                    const marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            fillColor: color,
+                            fillOpacity: 0.9,
+                            strokeWeight: 1,
+                            strokeColor: '#fff',
+                            scale: p.uncomf === 1 ? 8 : (color === '#ef4444' || color === '#fb8c00' ? 6 : 4)
+                        },
+                        zIndex: p.uncomf === 1 ? 3 : (color === '#ef4444' || color === '#fb8c00' ? 2 : 1)
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <div style="color:black; font-size:12px; font-family:sans-serif;">
+                                <b style="font-size:14px;">Event Detail</b><hr>
+                                <b>Type:</b> ${isRoad ? '<span style="color:#fb8c00">Road Bump (Z-axis)</span>' : '<span style="color:#ef4444">Driver Action (XY-axis)</span>'}<br>
+                                <b>SM Jerk:</b> ${p.jerk.toFixed(3)} G/s<br>
+                                <b>Peak Z-Jerk:</b> ${evalZJerk.toFixed(3)} G/s<br>
+                                <b>Vertical G:</b> ${parseFloat(p.original.rawG_Z || 0).toFixed(2)}<br>
+                                <b>Uncomfort:</b> ${p.uncomf === 1 ? '<span style="color:red">YES</span>' : 'NO'}
+                            </div>
+                        `
+                    });
+
+                    marker.addListener("click", () => {
+                        infoWindow.open(map, marker);
+                    });
+                    markers.push(marker);
+                }
+            });
+
+            polyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#10b981",
+                strokeOpacity: 0.7,
+                strokeWeight: 4,
+                map: map
+            });
+
+            if (path.length > 0) {
+                if (urlParams.get('startTime')) {
+                    // 個別イベント表示時は、該当箇所にズーム（交差点が見える程度：18）
+                    map.setCenter(path[0]);
+                    map.setZoom(18);
+                } else {
+                    map.fitBounds(bounds);
+                }
+            }
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+
+</html>
