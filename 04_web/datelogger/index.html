@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>救急搬送 乗り心地ロガー</title>
+    <style>
+        :root {
+            --primary: #4fc3f7;
+            --accent: #f44336;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            padding: 15px;
+            text-align: center;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: var(--primary);
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            filter: brightness(0) invert(1);
+            opacity: 0.7;
+        }
+
+        .icon-btn:active {
+            opacity: 1;
+            transform: scale(0.9);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 15px;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 12px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .value {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-top: 4px;
+            color: #fff;
+        }
+
+        .label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 0 15px 15px 15px;
+        }
+
+        button.action {
+            border: none;
+            padding: 14px;
+            font-size: 0.9rem;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #calibBtn {
+            background: var(--glass);
+            color: #fff;
+            border: 1px solid var(--glass-border);
+            grid-column: span 2;
+        }
+
+        #startBtn.start {
+            background: linear-gradient(135deg, #0288d1, #00acc1);
+            color: white;
+        }
+
+        #startBtn.stop {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: white;
+        }
+
+        #exportBtn {
+            display: none !important;
+        }
+
+        #statusMessage {
+            text-align: center;
+            font-size: 0.75rem;
+            margin: 10px 0;
+            color: #64748b;
+            padding: 0 15px;
+        }
+
+        #uncomfortableArea {
+            flex-grow: 1;
+            margin: 0 15px 15px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            touch-action: none;
+        }
+
+        .touch-hint {
+            font-size: 1.1rem;
+            color: #94a3b8;
+        }
+
+        .touch-sub {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 8px;
+        }
+
+        #uncomfortableArea.active {
+            background: rgba(244, 67, 54, 0.2);
+            border-color: var(--accent);
+            box-shadow: inset 0 0 20px rgba(244, 67, 54, 0.3);
+            transform: scale(0.98);
+        }
+
+        #uncomfortableArea.active .touch-hint {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        #uncomfortableArea.active .touch-sub {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* G-Bowl Styles */
+        .gbowl-container {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        #bowlCanvas {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border-radius: 20px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+            position: relative;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+        }
+
+        .modal-body {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+
+        .modal-body h3 {
+            font-size: 1rem;
+            color: #fff;
+            margin-top: 1.5rem;
+        }
+
+        .modal-close {
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            background: var(--primary);
+            color: #0f172a;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+
+        .img-icon {
+            width: 18px;
+            height: 18px;
+            vertical-align: middle;
+        }
+
+        /* Profile Inputs */
+        .profile-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 0 15px 15px 15px;
+        }
+
+        .input-group {
+            background: var(--glass);
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .input-group label {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .input-group input {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+            outline: none;
+        }
+
+        /* Recording Mode UI (Big Button) */
+        body.recording .dashboard {
+            grid-template-columns: repeat(3, 1fr);
+            padding: 10px;
+            gap: 8px;
+            position: relative;
+            z-index: 1001;
+            pointer-events: none;
+            /* ダッシュボード越しのタップも不快感入力に反応させる */
+        }
+
+        body.recording .card {
+            padding: 6px;
+        }
+
+        body.recording .value {
+            font-size: 1rem;
+        }
+
+        body.recording .label {
+            font-size: 0.6rem;
+        }
+
+        body.recording .profile-inputs,
+        body.recording #statusMessage,
+        body.recording #calibBtn,
+        body.recording #exportBtn,
+        body.recording #cloudBtn,
+        body.recording .header h1,
+        body.recording .header .icon-btn {
+            display: none !important;
+        }
+
+        body.recording #startBtn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            z-index: 2000;
+            font-size: 0.75rem;
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);
+            padding: 0;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body.recording #uncomfortableArea {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: 0;
+            border: none;
+            border-radius: 0;
+            background: rgba(15, 23, 42, 0.9);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        body.recording #uncomfortableArea .touch-hint {
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        body.recording .gbowl-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.8);
+            z-index: -1;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        body.recording #uncomfortableArea .touch-hint {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <img src="app_icon_ambulance_sensor_1772053937063.png" style="width:32px; border-radius: 8px;"
+            onerror="this.src='https://placehold.co/32?text=App'">
+        <h1>RIDE QUALITY LOGGER</h1>
+        <button class="icon-btn" onclick="openModal()"><img src="icon_manual_book_1772053955806.png" style="width:24px;"
+                onerror="this.src='https://placehold.co/24?text=Manual'"></button>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <div class="label">Speed (km/h)</div>
+            <div id="speedValue" class="value">0.0</div>
+        </div>
+        <div class="card">
+            <div class="label">Total Samples</div>
+            <div id="logCount" class="value">0</div>
+        </div>
+    </div>
+
+    <div id="statusMessage">車両を水平な場所に停車させ、水平セットを行ってください</div>
+
+    <div class="profile-inputs">
+        <div class="input-group">
+            <label>消防歴 (年)</label>
+            <input type="number" id="driverExp" placeholder="例: 10" min="0" max="50">
+        </div>
+        <div class="input-group">
+            <label>年齢 (歳)</label>
+            <input type="number" id="driverAge" placeholder="例: 35" min="18" max="70">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="calibBtn" class="action calib"><img src="icon_sensor_calibrate_1772053987713.png" class="img-icon"
+                onerror="this.style.display='none'"> [Calibrate] 水平・方位セット</button>
+        <button id="startBtn" class="action start">記録開始</button>
+        <button id="exportBtn" class="action export" style="display:none;">CSV出力</button>
+        <button id="cloudBtn" class="action cloud"
+            style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; display: none;">クラウド送信</button>
+    </div>
+
+    <div id="uncomfortableArea">
+        <div class="gbowl-container">
+            <canvas id="bowlCanvas" width="200" height="200"></canvas>
+        </div>
+        <div class="touch-hint">不快感を入力</div>
+        <div class="touch-sub">不快な揺れを感じている間、<br>ここを押し続けてください</div>
+    </div>
+
+    <!-- Manual Modal -->
+    <div id="manualModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">実証実験について</div>
+            <div class="modal-body">
+                <h3>1. 本実験の目的</h3>
+                <p>現在、機関員の運転技術や「滑らかさ」の評価は、個人の感覚や経験則に大きく依存しています。本実験は、専用の計測アプリを用いて車両の「加速度（G）」と「加加速度（躍度・衝撃）」を記録し、同時に傷病者役が感じる「不快感」のデータを同期させることで、当機関独自の客観的な安全運転基準（エビデンス）を確立することを目的とします。
+                </p>
+
+                <h3>2. 実験の概要</h3>
+                <ul>
+                    <li>計測用スマートフォンを車両（ダッシュボード等）に固定し、走行中のGと躍度を記録します。</li>
+                    <li>傷病者役は後部ストレッチャーに横たわり、手元の端末で「不快感」をリアルタイムに入力します。</li>
+                    <li>設定された同一ルートを、複数の機関員がそれぞれの日常的な運転感覚で走行します。</li>
+                </ul>
+
+                <h3>3. 被験者（傷病者役）へのお願い</h3>
+                <p>予測の排除のため、アイマスクと耳栓を着用していただきます。「体がズレる感覚」「カックンという衝撃」などを少しでも感じたら、収まるまで画面に触れ続けてください。実際の傷病者を想定し、厳しく判定を行ってください。
+                </p>
+
+                <h3>4. 機関員（運転手）へのお願い</h3>
+                <p>日常業務で行っている「安全かつ迅速な搬送」の感覚で走行してください。本実験は個人の運転技術を採点するものではなく、境界線（閾値）を探るためのものです。</p>
+
+                <h3>5. 安全管理</h3>
+                <p>道路交通法を遵守し、安全を最優先としてください。危険を感じた際は直ちに実験を中断してください。</p>
+            </div>
+            <button class="modal-close" onclick="closeModal()">了解しました</button>
+        </div>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let isUncomfortable = false;
+        let logData = [];
+        let rawX = 0, rawY = 0, rawZ = 0;
+        let lastX = 0, lastY = 0, lastZ = 0;
+        let jerkX = 0, jerkY = 0, jerkZ = 0;
+        let yawRate = 0, pitchRate = 0, rollRate = 0;
+        let currentHeading = 0;
+        let currentGps = { lat: 0, lon: 0, speed: 0 };
+        let offsetX = 0, offsetY = 0, offsetZ = 0, offsetYaw = 0;
+        let smoothX = 0, smoothY = 0;
+        const LPF_ALPHA = 0.025; // 40 samples smoothing (1/40)
+        let trailPoints = []; // Last 0.5s trail (10 samples)
+        let isCalibrating = false;
+        let recordInterval = null;
+        let watchId = null;
+        let wakeLock = null;
+        let autoSendInterval = null;
+        let lastSentIndex = 0;
+        let isSending = false;
+        const RECORD_RATE_MS = 50;
+        const AUTO_SEND_MS = 5000;
+
+        const calibBtn = document.getElementById('calibBtn');
+        const startBtn = document.getElementById('startBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const cloudBtn = document.getElementById('cloudBtn');
+        const uncomfortableArea = document.getElementById('uncomfortableArea');
+        const driverExpInput = document.getElementById('driverExp');
+        const driverAgeInput = document.getElementById('driverAge');
+
+        const gValueEl = null; // Removed
+        const yawValueEl = null; // Removed
+        const jerkValueEl = null; // Removed
+        const zValueEl = null; // Removed
+        const speedValueEl = document.getElementById('speedValue');
+        const logCountEl = document.getElementById('logCount');
+        const statusMessage = document.getElementById('statusMessage');
+        const bowlCanvas = document.getElementById('bowlCanvas');
+        const bowlCtx = bowlCanvas.getContext('2d');
+
+        // Load profile from localStorage
+        window.addEventListener('load', () => {
+            driverExpInput.value = localStorage.getItem('driverExp') || '';
+            driverAgeInput.value = localStorage.getItem('driverAge') || '';
+        });
+
+        // Save profile on change
+        driverExpInput.addEventListener('change', () => localStorage.setItem('driverExp', driverExpInput.value));
+        driverAgeInput.addEventListener('change', () => localStorage.setItem('driverAge', driverAgeInput.value));
+
+        // Heading integration
+        let lastMotionTime = Date.now();
+
+        function openModal() { document.getElementById('manualModal').style.display = 'block'; }
+        function closeModal() { document.getElementById('manualModal').style.display = 'none'; }
+
+        function setUncomfortable(state) {
+            isUncomfortable = state;
+            if (state) {
+                uncomfortableArea.classList.add('active');
+                uncomfortableArea.querySelector('.touch-hint').innerHTML = "記録中...";
+                if (navigator.vibrate) navigator.vibrate(50);
+            } else {
+                uncomfortableArea.classList.remove('active');
+                uncomfortableArea.querySelector('.touch-hint').innerHTML = "不快感を入力";
+            }
+        }
+        uncomfortableArea.addEventListener('touchstart', (e) => { e.preventDefault(); setUncomfortable(true); });
+        uncomfortableArea.addEventListener('touchend', (e) => { e.preventDefault(); setUncomfortable(false); });
+        uncomfortableArea.addEventListener('mousedown', (e) => { setUncomfortable(true); });
+        uncomfortableArea.addEventListener('mouseup', (e) => { setUncomfortable(false); });
+
+        async function requestPermissions() {
+            let granted = true;
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                try { const p = await DeviceMotionEvent.requestPermission(); if (p !== 'granted') granted = false; } catch (e) { granted = false; }
+            }
+            return granted;
+        }
+
+        async function startCalibration() {
+            if (!await requestPermissions()) { statusMessage.innerText = "❌ センサー権限がありません"; return; }
+
+            // Request GPS permission early to avoid prompt during recording start
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => { handlePosition(pos); console.log("GPS Permission granted and position obtained."); },
+                    (err) => { console.error("GPS Permission error:", err); },
+                    { enableHighAccuracy: true }
+                );
+            }
+
+            isCalibrating = true;
+            let cX = [], cY = [], cZ = [];
+            statusMessage.innerText = "⏳ 調整中... 端末を動かさないでください";
+            calibBtn.disabled = true; startBtn.disabled = true;
+
+            const tempH = (e) => {
+                if (isCalibrating) {
+                    cX.push((e.accelerationIncludingGravity.x || 0) / 9.8);
+                    cY.push((e.accelerationIncludingGravity.y || 0) / 9.8);
+                    cZ.push((e.accelerationIncludingGravity.z || 0) / 9.8);
+                }
+            };
+            window.addEventListener('devicemotion', tempH);
+
+            setTimeout(() => {
+                isCalibrating = false; window.removeEventListener('devicemotion', tempH);
+                if (cX.length > 0) {
+                    offsetX = cX.reduce((a, b) => a + b) / cX.length;
+                    offsetY = cY.reduce((a, b) => a + b) / cY.length;
+                    offsetZ = (cZ.reduce((a, b) => a + b) / cZ.length) - 1.0;
+                    currentHeading = 0; // Reset heading on calibration
+                    smoothX = 0; smoothY = 0; // Reset display smoothing
+                    trailPoints = []; // Reset trail
+                    statusMessage.innerText = "✅ 水平・方位セット完了"; statusMessage.style.color = "#4caf50";
+                }
+                calibBtn.disabled = false; startBtn.disabled = false;
+            }, 2000);
+        }
+
+        function handleMotion(e) {
+            const now = Date.now();
+            const dt = (now - lastMotionTime) / 1000;
+            if (dt <= 0) return; // Prevent division by zero
+            lastMotionTime = now;
+
+            rawX = ((e.accelerationIncludingGravity.x || 0) / 9.8) - offsetX;
+            rawY = ((e.accelerationIncludingGravity.y || 0) / 9.8) - offsetY;
+            rawZ = ((e.accelerationIncludingGravity.z || 0) / 9.8) - (offsetZ + 1.0);
+            yawRate = (e.rotationRate.alpha || 0) * (Math.PI / 180);
+            pitchRate = (e.rotationRate.beta || 0) * (Math.PI / 180);
+            rollRate = (e.rotationRate.gamma || 0) * (Math.PI / 180);
+
+            // Update Smooth Values for Display (LPF)
+            smoothX = LPF_ALPHA * rawX + (1 - LPF_ALPHA) * smoothX;
+            smoothY = LPF_ALPHA * rawY + (1 - LPF_ALPHA) * smoothY;
+
+            // Manage Trail Points (Max 10 for 0.5s at 20Hz)
+            trailPoints.push({ x: smoothX, y: smoothY });
+            if (trailPoints.length > 10) trailPoints.shift();
+
+            // Update UI
+            drawBowl(smoothX, smoothY);
+            // Speed update from GPS is handled in handlePosition
+        }
+
+        function drawBowl(x, y) {
+            const size = 200;
+            const center = size / 2;
+            const maxG = 0.4;
+            const scale = (size / 2) / maxG;
+
+            bowlCtx.clearRect(0, 0, size, size);
+
+            // Draw grid circles
+            bowlCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            bowlCtx.lineWidth = 1;
+            for (let g = 0.1; g <= 0.4; g += 0.1) {
+                bowlCtx.beginPath();
+                bowlCtx.arc(center, center, g * scale, 0, Math.PI * 2);
+                bowlCtx.stroke();
+            }
+
+            // Draw axis
+            bowlCtx.beginPath();
+            bowlCtx.moveTo(0, center); bowlCtx.lineTo(size, center);
+            bowlCtx.moveTo(center, 0); bowlCtx.lineTo(center, size);
+            bowlCtx.stroke();
+
+            // Draw Trail (0.5s history)
+            if (trailPoints.length > 1) {
+                bowlCtx.beginPath();
+                bowlCtx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
+                bowlCtx.lineWidth = 2;
+                trailPoints.forEach((p, i) => {
+                    const tx = center + (p.x * scale);
+                    const ty = center - (p.y * scale);
+                    if (i === 0) bowlCtx.moveTo(tx, ty);
+                    else bowlCtx.lineTo(tx, ty);
+                });
+                bowlCtx.stroke();
+            }
+
+            // Draw current G point
+            const dotX = center + (x * scale);
+            const dotY = center - (y * scale); // Invert Y for screen coordinates
+
+            // Outer glow
+            const grad = bowlCtx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 15);
+            grad.addColorStop(0, 'rgba(79, 195, 247, 0.8)');
+            grad.addColorStop(1, 'rgba(79, 195, 247, 0)');
+            bowlCtx.fillStyle = grad;
+            bowlCtx.beginPath();
+            bowlCtx.arc(dotX, dotY, 15, 0, Math.PI * 2);
+            bowlCtx.fill();
+
+            // Core dot
+            bowlCtx.fillStyle = '#fff';
+            bowlCtx.beginPath();
+            bowlCtx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+            bowlCtx.fill();
+
+            // Label
+            bowlCtx.fillStyle = '#4fc3f7';
+            bowlCtx.font = '10px Outfit';
+            bowlCtx.textAlign = 'center';
+            const totalG = Math.sqrt(x * x + y * y);
+            bowlCtx.fillText(totalG.toFixed(2) + " G", center, size - 10);
+        }
+
+        function handlePosition(position) {
+            currentGps.lat = position.coords.latitude;
+            currentGps.lon = position.coords.longitude;
+            currentGps.speed = (position.coords.speed || 0) * 3.6;
+            if (!isRecording) speedValueEl.innerText = currentGps.speed.toFixed(1);
+        }
+
+        function recordData() {
+            if (!isRecording) return;
+            const ts = Date.now();
+
+            // Calculate Jerk (dt is RECORD_RATE_MS)
+            const dtSec = RECORD_RATE_MS / 1000;
+            jerkX = (rawX - lastX) / dtSec;
+            jerkY = (rawY - lastY) / dtSec;
+            jerkZ = (rawZ - lastZ) / dtSec;
+
+            speedValueEl.innerText = currentGps.speed.toFixed(1);
+
+            logData.push({
+                time_ms: ts, uncomfortable: isUncomfortable ? 1 : 0,
+                rawG_X: rawX.toFixed(4), rawG_Y: rawY.toFixed(4), rawG_Z: rawZ.toFixed(4),
+                jerk_X: jerkX.toFixed(4), jerk_Y: jerkY.toFixed(4), jerk_Z: jerkZ.toFixed(4),
+                yaw_rad: currentHeading.toFixed(4), pitch_rad: pitchRate.toFixed(4), roll_rad: rollRate.toFixed(4),
+                lat: currentGps.lat.toFixed(6), lon: currentGps.lon.toFixed(6), speed_kmh: currentGps.speed.toFixed(1),
+                exp: driverExpInput.value || 0, age: driverAgeInput.value || 0
+            });
+
+            lastX = rawX; lastY = rawY; lastZ = rawZ;
+            logCountEl.innerText = logData.length;
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock is active');
+                }
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock released');
+            }
+        }
+
+        // Re-acquire wake lock when tab becomes visible again
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                if (!confirm("記録を始めます。年齢消防歴入力しましたか？")) return;
+                if (!await requestPermissions()) return;
+                logData = []; logCountEl.innerText = "0";
+                exportBtn.style.display = 'none'; calibBtn.style.display = 'none';
+
+                // Note: devicemotion listener is already added globally, 
+                // we just start interval for data recording
+
+                if (navigator.geolocation) {
+                    watchId = navigator.geolocation.watchPosition(handlePosition, (err) => console.error(err), { enableHighAccuracy: true });
+                }
+                isRecording = true;
+                document.body.classList.add('recording');
+                currentHeading = 0; // Reset heading on recording start
+                startBtn.innerText = "停止"; startBtn.className = "action stop";
+                statusMessage.innerText = "📡 記録中 (20Hzサンプリング)"; statusMessage.style.color = "#fff";
+                recordInterval = setInterval(recordData, RECORD_RATE_MS);
+                lastSentIndex = 0;
+                autoSendInterval = setInterval(() => sendToCloud(true), AUTO_SEND_MS);
+                await requestWakeLock();
+            } else {
+                isRecording = false;
+                document.body.classList.remove('recording');
+                if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                clearInterval(recordInterval);
+                clearInterval(autoSendInterval);
+                startBtn.innerText = "記録開始"; startBtn.className = "action start";
+                statusMessage.innerText = "🏁 記録停止...";
+
+                // Final flush of remaining data
+                await sendToCloud(true);
+
+                exportBtn.style.display = 'inline-block'; calibBtn.style.display = 'inline-block';
+                releaseWakeLock();
+            }
+        }
+
+        async function sendToCloud(isAuto = false) {
+            if (isSending) {
+                if (!isAuto) console.log("Still sending, skip manual send");
+                return;
+            }
+            const gasUrl = "https://script.google.com/macros/s/AKfycbyza-BCowCNcWYb-63gx1gd4UARcYTeJ8DXqv-rrZwcRryWqfZanAnXfyrf6jFxMEfDIA/exec";
+
+            // Get new data to send (snapshot current length to avoid skip)
+            const currentTotal = logData.length;
+            const dataToSend = logData.slice(lastSentIndex, currentTotal);
+            if (dataToSend.length === 0) return;
+
+            isSending = true;
+            if (!isAuto) {
+                statusMessage.innerText = "☁️ クラウドへ送信中...";
+                cloudBtn.disabled = true;
+            } else {
+                console.log(`Auto-sending ${dataToSend.length} points (up to index ${currentTotal})...`);
+            }
+
+            try {
+                const response = await fetch(gasUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'text/plain' }, // Use text/plain for no-cors safety
+                    body: JSON.stringify(dataToSend)
+                });
+
+                lastSentIndex = currentTotal; // Update pointer to the snapshot length
+
+                if (!isAuto) {
+                    statusMessage.innerText = "✅ クラウド送信完了";
+                    statusMessage.style.color = "#4caf50";
+                }
+
+                // Hide retry button if all synced
+                if (lastSentIndex >= logData.length) {
+                    cloudBtn.style.display = 'none';
+                }
+
+            } catch (e) {
+                console.error("Cloud send error:", e);
+                statusMessage.innerText = "❌ 送信失敗: " + e.message;
+                statusMessage.style.color = "#f44336";
+
+                // Show retry button on error
+                cloudBtn.style.display = 'inline-block';
+                cloudBtn.innerText = "[Retry] 未送信データを送信";
+                cloudBtn.disabled = false;
+            } finally {
+                isSending = false;
+            }
+        }
+
+        function exportCSV() {
+            if (logData.length === 0) return;
+            const h = Object.keys(logData[0]).join(',');
+            const r = logData.map(o => Object.values(o).join(',')).join('\n');
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), h + '\n' + r], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+            link.download = `ride_quality_log_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        calibBtn.addEventListener('click', startCalibration);
+        startBtn.addEventListener('click', toggleRecording);
+        exportBtn.addEventListener('click', exportCSV);
+        cloudBtn.addEventListener('click', sendToCloud);
+        window.addEventListener('devicemotion', handleMotion); 
+    </script>
+</body>
+
+</html>
