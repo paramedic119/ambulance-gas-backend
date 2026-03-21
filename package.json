@@ -1,0 +1,12 @@
+{
+  "name": "ambulance-gas-backend",
+  "version": "1.0.0",
+  "description": "Ambulance GAS Backend and Web Frontend",
+  "scripts": {
+    "deploy:pages": "gh workflow run deploy.yml",
+    "deploy:gas": "npx @google/clasp push",
+    "deploy": "npm run deploy:pages && npm run deploy:gas"
+  },
+  "author": "",
+  "license": "ISC"
+}

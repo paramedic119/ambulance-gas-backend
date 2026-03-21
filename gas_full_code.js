@@ -22,7 +22,7 @@ function doGet(e) {
             let obj = {};
             headers.forEach((header, i) => {
                 let val = row[i];
-                if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon", "age", "exp"].includes(header)) {
+                if (["time_ms", "uncomfortable", "rawG_X", "rawG_Y", "rawG_Z", "jerk_X", "jerk_Y", "jerk_Z", "speed_kmh", "lat", "lon", "is_emergency", "age", "exp"].includes(header)) {
                     val = parseFloat(val);
                     if (isNaN(val)) val = 0;
                 }

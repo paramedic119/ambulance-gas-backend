@@ -6,3 +6,22 @@
 .DS_Store
 .vscode/
 *.swp
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Project Data (Avoid large files in git)
+02_data/
+driving_data_prepared.csv
+optuna_study.db
+
+# Internal / Temporaries
+.agents/
+zifWVt3G
+
+# Node
+node_modules/
+package-lock.json

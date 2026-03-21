@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>救急実車走行データロガー (Emergency Edition)</title>
+    <style>
+        :root {
+            --primary: #4fc3f7;
+            --accent: #f44336;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            padding: 15px;
+            text-align: center;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: var(--primary);
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 15px;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 12px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-top: 4px;
+            color: #fff;
+        }
+
+        .label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .gbowl-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #bowlCanvas {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+            width: 80vw;
+            height: 80vw;
+            max-width: 350px;
+            max-height: 350px;
+        }
+
+        .controls {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        button.action {
+            border: none;
+            padding: 18px;
+            font-size: 1rem;
+            border-radius: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #calibBtn {
+            background: var(--glass);
+            color: #fff;
+            border: 1px solid var(--glass-border);
+        }
+
+        #startBtn.start {
+            background: linear-gradient(135deg, #0288d1, #00acc1);
+            color: white;
+        }
+
+        #startBtn.stop {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(225, 29, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+
+        #statusMessage {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        /* Toggle Switch Styles */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--glass);
+            transition: .4s;
+            border: 1px solid var(--glass-border);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            border-color: var(--accent);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>EMERGENCY RUN LOGGER (V3)</h1>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <div class="label">Speed (km/h)</div>
+            <div id="speedValue" class="value">0.0</div>
+        </div>
+        <div class="card">
+            <div class="label">Samples</div>
+            <div id="logCount" class="value">0</div>
+        </div>
+        <div class="card" style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;">
+            <div class="label" style="font-size: 0.85rem; color: #fff;">緊急走行モード</div>
+            <label class="switch">
+                <input type="checkbox" id="emergencyToggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="gbowl-container">
+        <canvas id="bowlCanvas" width="300" height="300"></canvas>
+    </div>
+
+    <div id="statusMessage">水平な場所でセットしてください</div>
+
+    <div class="controls">
+        <button id="calibBtn" class="action">水平セット</button>
+        <button id="startBtn" class="action start">記録開始</button>
+    </div>
+
+    <script>
+        // 設定: 新しいGASのURLに書き換えてください
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyDUe-9y4oDoZYq-Cttk7fiGJohPwyr7LiFMijwZvZaThDMAcG0d7AQnndsnYPDBbrw9A/exec";
+
+        let isRecording = false;
+        let logData = [];
+        let rawX = 0, rawY = 0, rawZ = 0;
+        let lastX = 0, lastY = 0, lastZ = 0;
+        let currentGps = { lat: 0, lon: 0, speed: 0 };
+        let offsetX = 0, offsetY = 0, offsetZ = 0;
+        let smoothX = 0, smoothY = 0;
+        let trailPoints = [];
+        const LPF_ALPHA = 0.05;
+        const RECORD_RATE_MS = 50;
+        const AUTO_SEND_MS = 5000;
+        let recordInterval, autoSendInterval, watchId, wakeLock;
+        let lastSentIndex = 0, isSending = false;
+
+        const calibBtn = document.getElementById('calibBtn');
+        const startBtn = document.getElementById('startBtn');
+        const speedValueEl = document.getElementById('speedValue');
+        const logCountEl = document.getElementById('logCount');
+        const statusMessage = document.getElementById('statusMessage');
+        const bowlCanvas = document.getElementById('bowlCanvas');
+        const bowlCtx = bowlCanvas.getContext('2d');
+
+        async function requestPermissions() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                return await DeviceMotionEvent.requestPermission() === 'granted';
+            }
+            return true;
+        }
+
+        calibBtn.onclick = async () => {
+            if (!await requestPermissions()) { statusMessage.innerText = "センサー権限エラー"; return; }
+            statusMessage.innerText = "調整中...";
+            let cX = [], cY = [], cZ = [];
+            const tempH = (e) => {
+                cX.push((e.accelerationIncludingGravity.x || 0) / 9.8);
+                cY.push((e.accelerationIncludingGravity.y || 0) / 9.8);
+                cZ.push((e.accelerationIncludingGravity.z || 0) / 9.8);
+            };
+            window.addEventListener('devicemotion', tempH);
+            setTimeout(() => {
+                window.removeEventListener('devicemotion', tempH);
+                if (cX.length > 0) {
+                    offsetX = cX.reduce((a, b) => a + b) / cX.length;
+                    offsetY = cY.reduce((a, b) => a + b) / cY.length;
+                    offsetZ = (cZ.reduce((a, b) => a + b) / cZ.length) - 1.0;
+                    statusMessage.innerText = "✅ セット完了";
+                }
+            }, 2000);
+        };
+
+        window.addEventListener('devicemotion', (e) => {
+            rawX = ((e.accelerationIncludingGravity.x || 0) / 9.8) - offsetX;
+            rawY = ((e.accelerationIncludingGravity.y || 0) / 9.8) - offsetY;
+            rawZ = ((e.accelerationIncludingGravity.z || 0) / 9.8) - (offsetZ + 1.0);
+            smoothX = LPF_ALPHA * rawX + (1 - LPF_ALPHA) * smoothX;
+            smoothY = LPF_ALPHA * rawY + (1 - LPF_ALPHA) * smoothY;
+            trailPoints.push({ x: smoothX, y: smoothY });
+            if (trailPoints.length > 15) trailPoints.shift();
+            drawBowl(smoothX, smoothY);
+        });
+
+        function drawBowl(x, y) {
+            const size = 300, center = size / 2, maxG = 0.5, scale = (size / 2) / maxG;
+            bowlCtx.clearRect(0, 0, size, size);
+            bowlCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let g = 0.1; g <= 0.5; g += 0.1) {
+                bowlCtx.beginPath(); bowlCtx.arc(center, center, g * scale, 0, Math.PI * 2); bowlCtx.stroke();
+            }
+            bowlCtx.beginPath();
+            bowlCtx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
+            trailPoints.forEach((p, i) => {
+                const tx = center + (p.x * scale), ty = center - (p.y * scale);
+                if (i === 0) bowlCtx.moveTo(tx, ty); else bowlCtx.lineTo(tx, ty);
+            });
+            bowlCtx.stroke();
+            bowlCtx.fillStyle = '#fff'; bowlCtx.beginPath();
+            bowlCtx.arc(center + (x * scale), center - (y * scale), 6, 0, Math.PI * 2); bowlCtx.fill();
+        }
+
+        startBtn.onclick = async () => {
+            if (!isRecording) {
+                if (!await requestPermissions()) return;
+                logData = []; lastSentIndex = 0;
+                if (navigator.geolocation) {
+                    watchId = navigator.geolocation.watchPosition((p) => {
+                        currentGps = { lat: p.coords.latitude, lon: p.coords.longitude, speed: (p.coords.speed || 0) * 3.6 };
+                        speedValueEl.innerText = currentGps.speed.toFixed(1);
+                    }, null, { enableHighAccuracy: true });
+                }
+                isRecording = true;
+                startBtn.innerText = "停止"; startBtn.className = "action stop";
+                statusMessage.innerText = "📡 自動記録中...";
+                recordInterval = setInterval(() => {
+                    const dt = RECORD_RATE_MS / 1000;
+                    logData.push({
+                        time_ms: Date.now(), uncomfortable: 0,
+                        rawG_X: rawX.toFixed(4), rawG_Y: rawY.toFixed(4), rawG_Z: rawZ.toFixed(4),
+                        jerk_X: ((rawX - lastX) / dt).toFixed(4), jerk_Y: ((rawY - lastY) / dt).toFixed(4), jerk_Z: ((rawZ - lastZ) / dt).toFixed(4),
+                        lat: currentGps.lat.toFixed(6), lon: currentGps.lon.toFixed(6), speed_kmh: currentGps.speed.toFixed(1),
+                        is_emergency: document.getElementById('emergencyToggle').checked ? 1 : 0
+                    });
+                    lastX = rawX; lastY = rawY; lastZ = rawZ;
+                    logCountEl.innerText = logData.length;
+                }, RECORD_RATE_MS);
+                autoSendInterval = setInterval(sendToCloud, AUTO_SEND_MS);
+                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+            } else {
+                isRecording = false;
+                clearInterval(recordInterval); clearInterval(autoSendInterval);
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                startBtn.innerText = "記録開始"; startBtn.className = "action start";
+                statusMessage.innerText = "🏁 停止完了";
+                sendToCloud(); // Final send
+                if (wakeLock) wakeLock.release();
+            }
+        };
+
+        async function sendToCloud() {
+            if (isSending || GAS_URL.includes("YOUR_NEW")) return;
+            const toSend = logData.slice(lastSentIndex, logData.length);
+            if (toSend.length === 0) return;
+            isSending = true;
+            try {
+                const res = await fetch(GAS_URL, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(toSend)
+                });
+                lastSentIndex = logData.length;
+            } catch (e) { console.error(e); }
+            isSending = false;
+        }
+    </script>
+</body>
+
+</html>

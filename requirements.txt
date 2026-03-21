@@ -1,0 +1,9 @@
+requests
+pandas
+numpy
+lightgbm
+optuna
+matplotlib
+seaborn
+scikit-learn
+shap
