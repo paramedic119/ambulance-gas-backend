@@ -48,24 +48,40 @@ def prepare_data(df):
     if "rawG_X" in df.columns and "rawG_Y" in df.columns:
         df["total_G_XY"] = np.sqrt(df["rawG_X"]**2 + df["rawG_Y"]**2)
 
-    # --- 新規: 累積ダメージ（時系列）特徴量の追加 ---
-    # 過去3秒間(150 samples)のGの最大値
-    if "total_G_XY" in df.columns:
-        df["max_total_G_XY_3s"] = df.groupby("ride_id")["total_G_XY"].transform(lambda x: x.rolling(150, min_periods=1).max())
-    if "jerk_Z" in df.columns:
-        df["max_jerk_Z_3s"] = df.groupby("ride_id")["jerk_Z"].transform(lambda x: x.rolling(150, min_periods=1).max())
-    
-    # 過去5秒間(250 samples)のエネルギー（Z軸Gの2乗の移動平均）
-    if "rawG_Z" in df.columns:
-        df["energy_Z_5s"] = df.groupby("ride_id")["rawG_Z"].transform(lambda x: (x**2).rolling(250, min_periods=1).mean())
+    # --- 周波数自動判別と動的パラメータ設定 ---
+    def process_ride(group):
+        # サンプリング間隔(ms)の中央値からHzを推定
+        dt_ms = group["time_ms"].diff().median()
+        if pd.isna(dt_ms) or dt_ms <= 0:
+            hz = 50.0  # デフォルト
+        else:
+            hz = 1000.0 / dt_ms
+        
+        # 3秒窓と5秒窓のサンプル数
+        win_3s = max(1, int(3 * hz))
+        win_5s = max(1, int(5 * hz))
+        
+        # 特徴量エンジニアリング
+        if "total_G_XY" in group.columns:
+            group["max_total_G_XY_3s"] = group["total_G_XY"].rolling(win_3s, min_periods=1).max()
+        if "jerk_Z" in group.columns:
+            group["max_jerk_Z_3s"] = group["jerk_Z"].rolling(win_3s, min_periods=1).max()
+        if "rawG_Z" in group.columns:
+            group["energy_Z_5s"] = (group["rawG_Z"]**2).rolling(win_5s, min_periods=1).mean()
 
-    # --- 新規: 反応遅延を吸収する区間ラベリング（ターゲットの再定義） ---
-    # `uncomfortable = 1` の「1.5秒前〜0.2秒前」(10〜75 samples後) を正解とする
-    if "uncomfortable" in df.columns:
-        df["target"] = df.groupby("ride_id")["uncomfortable"].transform(
-            lambda x: x.shift(-75).rolling(window=66, min_periods=1).max().fillna(0)
-        )
-        # 以降の学習用に不要な生ラベル等を描画用以外は消すが、ここでは出力に含める
+        # 反応遅延ラベル (1.5秒前〜0.2秒前)
+        # 1.5s = 1.5 * hz samples, 0.2s = 0.2 * hz samples
+        if "uncomfortable" in group.columns:
+            shift_start = int(1.5 * hz)
+            shift_end = int(0.2 * hz)
+            win_label = shift_start - shift_end
+            # shift(-shift_start) で未来方向へずらし、window幅で過去(本来の未来)をカバー
+            group["target"] = group["uncomfortable"].shift(-shift_start).rolling(window=win_label, min_periods=1).max().fillna(0)
+        
+        return group
+
+    # 走行（ride_id）ごとに処理を適用
+    df = df.groupby("ride_id", group_keys=False).apply(process_ride)
     
     return df.dropna().reset_index(drop=True)
 

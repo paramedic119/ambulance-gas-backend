@@ -492,7 +492,7 @@
         let autoSendInterval = null;
         let lastSentIndex = 0;
         let isSending = false;
-        const RECORD_RATE_MS = 50;
+        const RECORD_RATE_MS = 20;
         const AUTO_SEND_MS = 5000;
 
         const calibBtn = document.getElementById('calibBtn');
@@ -613,7 +613,7 @@
 
             // Manage Trail Points (Max 10 for 0.5s at 20Hz)
             trailPoints.push({ x: smoothX, y: smoothY });
-            if (trailPoints.length > 10) trailPoints.shift();
+            if (trailPoints.length > 25) trailPoints.shift();
 
             // Update UI
             drawBowl(smoothX, smoothY);
@@ -759,7 +759,7 @@
                 document.body.classList.add('recording');
                 currentHeading = 0; // Reset heading on recording start
                 startBtn.innerText = "停止"; startBtn.className = "action stop";
-                statusMessage.innerText = "📡 記録中 (20Hzサンプリング)"; statusMessage.style.color = "#fff";
+                statusMessage.innerText = "📡 記録中 (50Hzサンプリング)"; statusMessage.style.color = "#fff";
                 recordInterval = setInterval(recordData, RECORD_RATE_MS);
                 lastSentIndex = 0;
                 autoSendInterval = setInterval(() => sendToCloud(true), AUTO_SEND_MS);

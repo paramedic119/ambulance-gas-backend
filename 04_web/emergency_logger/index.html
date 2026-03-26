@@ -240,7 +240,7 @@
         let smoothX = 0, smoothY = 0;
         let trailPoints = [];
         const LPF_ALPHA = 0.05;
-        const RECORD_RATE_MS = 50;
+        const RECORD_RATE_MS = 20;
         const AUTO_SEND_MS = 5000;
         let recordInterval, autoSendInterval, watchId, wakeLock;
         let lastSentIndex = 0, isSending = false;
@@ -288,7 +288,7 @@
             smoothX = LPF_ALPHA * rawX + (1 - LPF_ALPHA) * smoothX;
             smoothY = LPF_ALPHA * rawY + (1 - LPF_ALPHA) * smoothY;
             trailPoints.push({ x: smoothX, y: smoothY });
-            if (trailPoints.length > 15) trailPoints.shift();
+            if (trailPoints.length > 38) trailPoints.shift();
             drawBowl(smoothX, smoothY);
         });
 
