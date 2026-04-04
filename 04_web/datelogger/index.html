@@ -707,7 +707,7 @@
                 time_ms: ts, uncomfortable: isUncomfortable ? 1 : 0,
                 rawG_X: rawX.toFixed(4), rawG_Y: rawY.toFixed(4), rawG_Z: rawZ.toFixed(4),
                 jerk_X: jerkX.toFixed(4), jerk_Y: jerkY.toFixed(4), jerk_Z: jerkZ.toFixed(4),
-                yaw_rad: currentHeading.toFixed(4), pitch_rad: pitchRate.toFixed(4), roll_rad: rollRate.toFixed(4),
+                yaw_rad: yawRate.toFixed(4), pitch_rad: pitchRate.toFixed(4), roll_rad: rollRate.toFixed(4),
                 lat: currentGps.lat.toFixed(6), lon: currentGps.lon.toFixed(6), speed_kmh: currentGps.speed.toFixed(1),
                 exp: driverExpInput.value || 0, age: driverAgeInput.value || 0
             });

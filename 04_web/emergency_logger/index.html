@@ -236,7 +236,9 @@
         let rawX = 0, rawY = 0, rawZ = 0;
         let lastX = 0, lastY = 0, lastZ = 0;
         let currentGps = { lat: 0, lon: 0, speed: 0 };
-        let offsetX = 0, offsetY = 0, offsetZ = 0;
+        let gravX = 0, gravY = 0, gravZ = 0;
+        let tiltAngle = 0, cosT = 1, sinT = 0, mountAngleDeg = 0;
+        let yawRate = 0, pitchRate = 0, rollRate = 0;
         let smoothX = 0, smoothY = 0;
         let trailPoints = [];
         const LPF_ALPHA = 0.05;
@@ -273,18 +275,40 @@
             setTimeout(() => {
                 window.removeEventListener('devicemotion', tempH);
                 if (cX.length > 0) {
-                    offsetX = cX.reduce((a, b) => a + b) / cX.length;
-                    offsetY = cY.reduce((a, b) => a + b) / cY.length;
-                    offsetZ = (cZ.reduce((a, b) => a + b) / cZ.length) - 1.0;
-                    statusMessage.innerText = "✅ セット完了";
+                    gravX = cX.reduce((a, b) => a + b) / cX.length;
+                    gravY = cY.reduce((a, b) => a + b) / cY.length;
+                    gravZ = cZ.reduce((a, b) => a + b) / cZ.length;
+                    
+                    tiltAngle = Math.atan2(gravY, gravZ);
+                    cosT = Math.cos(tiltAngle);
+                    sinT = Math.sin(tiltAngle);
+                    mountAngleDeg = Math.round(tiltAngle * (180 / Math.PI));
+
+                    let placement = "平置き";
+                    if (mountAngleDeg > 20 && mountAngleDeg < 70) placement = "斜め設置";
+                    else if (mountAngleDeg >= 70) placement = "垂直設置";
+
+                    statusMessage.innerText = `✅ セット完了 (傾き: ${mountAngleDeg}° → ${placement})`;
                 }
             }, 2000);
         };
 
         window.addEventListener('devicemotion', (e) => {
-            rawX = ((e.accelerationIncludingGravity.x || 0) / 9.8) - offsetX;
-            rawY = ((e.accelerationIncludingGravity.y || 0) / 9.8) - offsetY;
-            rawZ = ((e.accelerationIncludingGravity.z || 0) / 9.8) - (offsetZ + 1.0);
+            let phoneX = ((e.accelerationIncludingGravity.x || 0) / 9.8) - gravX;
+            let phoneY = ((e.accelerationIncludingGravity.y || 0) / 9.8) - gravY;
+            let phoneZ = ((e.accelerationIncludingGravity.z || 0) / 9.8) - gravZ;
+
+            rawX = phoneX;
+            rawY = cosT * phoneY - sinT * phoneZ;
+            rawZ = sinT * phoneY + cosT * phoneZ;
+
+            let phoneAlpha = (e.rotationRate && e.rotationRate.alpha ? e.rotationRate.alpha : 0) * (Math.PI / 180);
+            let phoneBeta  = (e.rotationRate && e.rotationRate.beta  ? e.rotationRate.beta  : 0) * (Math.PI / 180);
+            let phoneGamma = (e.rotationRate && e.rotationRate.gamma ? e.rotationRate.gamma : 0) * (Math.PI / 180);
+
+            yawRate   = sinT * phoneGamma + cosT * phoneAlpha;
+            pitchRate = phoneBeta;
+            rollRate  = cosT * phoneGamma - sinT * phoneAlpha;
             smoothX = LPF_ALPHA * rawX + (1 - LPF_ALPHA) * smoothX;
             smoothY = LPF_ALPHA * rawY + (1 - LPF_ALPHA) * smoothY;
             trailPoints.push({ x: smoothX, y: smoothY });
@@ -329,8 +353,10 @@
                         time_ms: Date.now(), uncomfortable: 0,
                         rawG_X: rawX.toFixed(4), rawG_Y: rawY.toFixed(4), rawG_Z: rawZ.toFixed(4),
                         jerk_X: ((rawX - lastX) / dt).toFixed(4), jerk_Y: ((rawY - lastY) / dt).toFixed(4), jerk_Z: ((rawZ - lastZ) / dt).toFixed(4),
+                        yaw_rad: yawRate.toFixed(4), pitch_rad: pitchRate.toFixed(4), roll_rad: rollRate.toFixed(4),
                         lat: currentGps.lat.toFixed(6), lon: currentGps.lon.toFixed(6), speed_kmh: currentGps.speed.toFixed(1),
-                        is_emergency: document.getElementById('emergencyToggle').checked ? 1 : 0
+                        is_emergency: document.getElementById('emergencyToggle').checked ? 1 : 0,
+                        mount_angle: mountAngleDeg
                     });
                     lastX = rawX; lastY = rawY; lastZ = rawZ;
                     logCountEl.innerText = logData.length;
