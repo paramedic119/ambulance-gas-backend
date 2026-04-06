@@ -650,7 +650,7 @@
                 bowlCtx.lineWidth = 2;
                 trailPoints.forEach((p, i) => {
                     const tx = center + (p.x * scale);
-                    const ty = center - (p.y * scale);
+                    const ty = center + (p.y * scale);
                     if (i === 0) bowlCtx.moveTo(tx, ty);
                     else bowlCtx.lineTo(tx, ty);
                 });
@@ -659,7 +659,7 @@
 
             // Draw current G point
             const dotX = center + (x * scale);
-            const dotY = center - (y * scale); // Invert Y for screen coordinates
+            const dotY = center + (y * scale); // Fixed Y for correct presentation
 
             // Outer glow
             const grad = bowlCtx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 15);

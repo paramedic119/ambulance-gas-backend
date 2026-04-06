@@ -326,12 +326,12 @@
             bowlCtx.beginPath();
             bowlCtx.strokeStyle = 'rgba(79, 195, 247, 0.3)';
             trailPoints.forEach((p, i) => {
-                const tx = center + (p.x * scale), ty = center - (p.y * scale);
+                const tx = center + (p.x * scale), ty = center + (p.y * scale);
                 if (i === 0) bowlCtx.moveTo(tx, ty); else bowlCtx.lineTo(tx, ty);
             });
             bowlCtx.stroke();
             bowlCtx.fillStyle = '#fff'; bowlCtx.beginPath();
-            bowlCtx.arc(center + (x * scale), center - (y * scale), 6, 0, Math.PI * 2); bowlCtx.fill();
+            bowlCtx.arc(center + (x * scale), center + (y * scale), 6, 0, Math.PI * 2); bowlCtx.fill();
         }
 
         startBtn.onclick = async () => {
